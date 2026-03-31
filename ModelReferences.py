@@ -36,38 +36,92 @@ y = data['Customer_Status']
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-rf_classifier_model = RandomForestClassifier(n_estimators=200, random_state=42, max_depth=None)
-
-preprocessor = ColumnTransformer(transformers=[
+preprocessor_rf = ColumnTransformer(transformers=[
     ('cat', TargetEncoder(smooth=1.0), te_columns),
     ('onehot', OneHotEncoder(), ohe_columns),
-    ('ord', OrdinalEncoder(categories=[['Deal 1', 'Deal 2', 'Deal 3', 'Deal 4', 'Deal 5', np.nan]]),
-     ordinal_columns),
+    ('ord', OrdinalEncoder(categories=[['No', 'Deal 1', 'Deal 2', 'Deal 3', 'Deal 4', 'Deal 5']]), ordinal_columns),
     ('num', 'passthrough', numerical_columns)
 ])
 
+# Storing in a dict the column of model names alongside the pipelines that hold encoding and clf
+pipelines = {
+    "RandomForestClassifier": Pipeline(steps= [
+        ('encodings', preprocessor_rf),
+        ('rfc', RandomForestClassifier(random_state = 42))]),
+    "OversampledRFC": IbmPipeline(steps = [
+        ('encodings', preprocessor_rf),
+        ('clf', ADASYN(sampling_strategy= 'auto', random_state = 42)),
+        #('smote', SMOTE(random_state = 42)),
+        ('overfc', RandomForestClassifier(random_state = 42))]),
+    "EasyEnsemblerClassifier": IbmPipeline(steps = [
+        ('encodings', preprocessor_rf),
+        #('adasyn', ADASYN(sampling_strategy= 'auto', random_state = 42)),
+        #('smote', SMOTE(random_state = 42)),
+        #('smotetomek', SMOTETomek(random_state = 42)),
+        ('eec', EasyEnsembleClassifier(random_state = 42))]),
+    "BalancedRF": Pipeline(steps = [
+        ('encodings', preprocessor_rf),
+        ('brf', BalancedRandomForestClassifier(random_state = 42))]),
+    "XGBoost": Pipeline(steps = [
+        ('xgb', XGBClassifier(enable_categorical= True, random_state = 42))])
+}
 
-pipeline = Pipeline(steps=[
-    ('encodings', preprocessor),
-    #('adasyn', ADASYN(sampling_strategy= 'auto', random_state = 42)),
-    #('smote', SMOTETomek(random_state = 42)),
-    ('model', rf_classifier_model)])
+param_grid = {
+    'XGBoost': {
+        'xgb__n_estimators' : [100],
+        'xgb__max_depth' : [None, 3],
+        'xgb__learning_rate' : [0.01, 0.1, 0.2],
+        'xgb__gamma' : [0.1],
+        'xgb__alpha' : [0],
+        'xgb__lambda' : [1],
+        'xgb__scale_pos_weight' : [(y == 0).sum() / (y == 1).sum(), 1]
+    },
+    'RandomForestClassifier': {},
+    'OversampledRFC' : {},
+    'EasyEnsemblerClassifier' : {},
+    'BalancedRF' : {}
+}
 
-pipeline.fit(X_train, y_train)
+y_preds = {}
+y_preds_proba = {}
 
-y_pred = pipeline.predict(X_test)
-y_pred_proba = pipeline.predict_proba(X_test)[:, 1]
+grid_ranking = []
 
-print("Confusion Matrix for pre-tuning vanilla RFC:")
-print(confusion_matrix(y_test, y_pred))
-print("\nClassification Report for pre-tuning vanilla RFC:")
-print(classification_report(y_test, y_pred))
-print("AUC: ", roc_auc_score(y_test, y_pred_proba))
+recall_churn_scorer = make_scorer(recall_score, pos_label = 0)
 
-precision, recall, thresholds = precision_recall_curve(y_test, y_pred_proba)
+for name, pipe in pipelines.items():
+    gs = GridSearchCV(estimator= pipelines[name],
+                      param_grid= param_grid[name],
+                      scoring = {'AUC': 'roc_auc', 'F1': 'f1', 'Recall_Churn': recall_churn_scorer},
+                      refit = 'Recall_Churn',
+                      cv = 5,
+                      verbose= 1)
+    gs.fit(X_train, y_train)
 
-f1_scores = 2 * ((precision * recall) / (precision + recall))
-f1_scores = np.nan_to_num(f1_scores, nan=0.0)
+    grid_ranking.append({
+        'model_name': name,
+        'best_estimator': gs.best_estimator_,
+        'AUC': gs.cv_results_['mean_test_AUC'][gs.best_index_],
+        'F1' : gs.cv_results_['mean_test_F1'][gs.best_index_],
+        'recall_churn': gs.cv_results_['mean_test_Recall_Churn'][gs.best_index_]
+    })
 
-print('Best Threshold: ', thresholds[np.argmax(f1_scores)])
-print('Best F1-Score: ', np.max(f1_scores))
+    model_ranking = pd.DataFrame(grid_ranking)
+    best_model = model_ranking.sort_values(by = ['F1', 'recall_churn'], ascending = False)
+
+    print(f"\n{name} trained!")
+
+    print(f"Best model: {best_model['model_name']}")
+    print(best_model)
+
+    y_pred = gs.predict(X_test)
+    y_preds['predicted'] = y_pred
+    y_pred_proba = gs.predict_proba(X_test)[:, 1]
+    y_preds_proba['predicted'] = y_pred_proba
+    AUC = roc_auc_score(y_test, y_pred_proba)
+
+    #print(f"Confusion Matrix for {name}")
+    #print(confusion_matrix(y_test, y_pred))
+    #print("\nClassification Report for {}:".format(name))
+    #print(classification_report(y_test, y_pred))
+    #print("Area Under Curve for {}: {:.2f}".format(name, AUC))
