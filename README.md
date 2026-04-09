@@ -4,7 +4,7 @@ Churner prediction using binary classifiers in python, alongside PowerBI for rep
 ## Steps
 
 1. Data loading and cleaning; initial exploration with Pandas and Numpy
-2. Kmeans clustering testing Min/max scaling or Standardscaler, Elbow and Silhouette and Spider/Radar chart for profiling
+2. Kprototypes clustering dropping most of service-related features; use of StandardScaler for numericals; custom gamma for weighted categoricals (?); Elbow plot and Silhouette score; Scatterplot with Factorial Analysis for Mixed Data (FAMD); Spider/Radar chart for profiling
 3. Kaplan-Meier Curve for main categorical features survivability over months of tenure
 4. Feature correlation and COX PH for spotting columns of highest HR
 5. Auto ranking and choice of classification model with pipelines and GridSearchCV tuning; recall and f1 as main metrics for retention strat
