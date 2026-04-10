@@ -5,6 +5,7 @@ Churner prediction using binary classifiers in python, alongside PowerBI for rep
 
 1. Data loading and cleaning; initial exploration with Pandas and Numpy
 2. Kprototypes clustering dropping most of service-related features;
+- ```.fillna()``` Median will be inputted for NaN in numericals, and mode for categoricals (if Yes/No columns, NaN can be inputted No);
 - use of StandardScaler for numericals;
 - custom gamma for weighted categoricals;
 - Elbow plot for optimal k;
