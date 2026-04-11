@@ -11,7 +11,46 @@ Churner prediction using binary classifiers in python, alongside PowerBI for rep
 - Elbow plot for optimal k;
 - Apply **Gower Matrix** to correctly process mixed data distance (not Euclidian nor Hamming). With the "null dealt" original df, and ordinal columns turned into numbers, pass this non-standardized df to gower.gower_matrix(). This df cannot contain numerical outliers.
 
-```score = silhouette_score(dist_matrix, clusters, metric='precomputed')```
+! Consider using HCA: dendogram for no. k choice:
+
+```
+import matplotlib.pyplot as plt
+from scipy.cluster.hierarchy import dendrogram, linkage
+from scipy.spatial.distance import squareform
+
+# 1. Converter a matriz de Gower para o formato 'condensed'
+# O scipy exige que a matriz quadrada seja convertida em um vetor (forma condensada)
+condensed_dist = squareform(dist_matrix, checks=False)
+
+# 2. Gerar o Linkage (a estrutura da árvore)
+# 'average' é o método que discutimos para melhor Silhouette
+Z = linkage(condensed_dist, method='average')
+
+# 3. Plotar o Dendrograma
+plt.figure(figsize=(12, 7))
+plt.title('Dendrograma de Propensão ao Consumo (Gower + Average Linkage)')
+plt.xlabel('Índice dos Clientes (ou tamanho do grupo)')
+plt.ylabel('Distância de Gower')
+
+dendrogram(
+    Z,
+    truncate_mode='lastp',  # Mostra apenas os últimos 'p' clusters para não poluir
+    p=12,                   # Ver apenas os últimos 12 agrupamentos
+    leaf_rotation=45.,
+    leaf_font_size=10.,
+    show_contracted=True    # Mostra marcas nos grupos contraídos
+)
+
+# Linha de corte sugerida (ajuste conforme o gráfico gerado)
+# plt.axhline(y=0.15, color='r', linestyle='--') 
+
+plt.show()
+```
+
+set the HC model with ```AgglomerativeClustering``` and average ```linkage``` with gower_dist,then ```.fit_predict(gower_dist)``` and get the metrics
+
+```score = silhouette_score(dist_matrix, clusters, metric='precomputed')
+dbi = davies_bouldin_score(df.select_dtypes(include=[np.number]), clusters)```
 
 - Scatterplot with Factorial Analysis for Mixed Data (FAMD); 
 - Spider/Radar chart for profiling.
