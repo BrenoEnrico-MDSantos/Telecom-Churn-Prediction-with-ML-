@@ -13,8 +13,7 @@ Churner prediction using binary classifiers in python, alongside PowerBI for rep
 
 ! Consider using HCA: dendogram for no. k choice:
 
-```
-import matplotlib.pyplot as plt
+```import matplotlib.pyplot as plt
 from scipy.cluster.hierarchy import dendrogram, linkage
 from scipy.spatial.distance import squareform
 
@@ -44,8 +43,7 @@ dendrogram(
 # Linha de corte sugerida (ajuste conforme o gráfico gerado)
 # plt.axhline(y=0.15, color='r', linestyle='--') 
 
-plt.show()
-```
+plt.show()```
 
 set the HC model with ```AgglomerativeClustering``` and average ```linkage``` with gower_dist,then ```.fit_predict(gower_dist)``` and get the metrics
 
@@ -54,7 +52,6 @@ dbi = davies_bouldin_score(df.select_dtypes(include=[np.number]), clusters)```
 
 - Scatterplot with Factorial Analysis for Mixed Data (FAMD); 
 - Spider/Radar chart for profiling.
-
 
 3. Kaplan-Meier Curve for main categorical features survivability over months of tenure
 4. Feature correlation and COX PH for spotting columns of highest HR
