@@ -43,9 +43,10 @@ dendrogram(
 # Linha de corte sugerida (ajuste conforme o gráfico gerado)
 # plt.axhline(y=0.15, color='r', linestyle='--') 
 
-plt.show()```
+plt.show()
+```
 
-set the HC model with ```AgglomerativeClustering``` and average ```linkage``` with gower_dist,then ```.fit_predict(gower_dist)``` and get the metrics
+Set the HC model with ```AgglomerativeClustering``` and average ```linkage``` with gower_dist,then ```.fit_predict(gower_dist)``` and get the metrics:
 
 ```score = silhouette_score(dist_matrix, clusters, metric='precomputed')
 dbi = davies_bouldin_score(df.select_dtypes(include=[np.number]), clusters)```
@@ -56,7 +57,7 @@ dbi = davies_bouldin_score(df.select_dtypes(include=[np.number]), clusters)```
 3. Kaplan-Meier Curve for main categorical features survivability over months of tenure
 4. Feature correlation and COX PH for spotting columns of highest HR
 5. Auto ranking and choice of classification model with pipelines and GridSearchCV tuning; recall and f1 as main metrics for retention strat
-6. Apply best model to recently joined customers and divise retention and winback measures (
+6. Apply best model to recently joined customers and divise retention and winback measures
 7. PowerBI viz with slicers; report of losses to churn, distribution across categoricals and highest Hazard Ratio assessed; prediction panel with costs of strategies and imminent losses (emphasize emergency for top clusters)
 
 Classification Models:
