@@ -48,8 +48,11 @@ plt.show()
 
 Set the HC model with ```AgglomerativeClustering``` and average ```linkage``` with gower_dist,then ```.fit_predict(gower_dist)``` and get the metrics:
 
-```score = silhouette_score(dist_matrix, clusters, metric='precomputed')
-dbi = davies_bouldin_score(df.select_dtypes(include=[np.number]), clusters)```
+```
+score = silhouette_score(dist_matrix, clusters, metric='precomputed')
+
+dbi = davies_bouldin_score(df.select_dtypes(include=[np.number]), clusters)
+```
 
 - Scatterplot with Factorial Analysis for Mixed Data (FAMD); 
 - Spider/Radar chart for profiling.
