@@ -54,6 +54,31 @@ score = silhouette_score(dist_matrix, clusters, metric='precomputed')
 dbi = davies_bouldin_score(df.select_dtypes(include=[np.number]), clusters)
 ```
 
+Since gower will be used for HCA, and the matrix applies Min/Max Scaler for numerical features, detect outliers first and then assess VarianceThreshold:
+
+```
+from sklearn.feature_selection import VarianceThreshold
+from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
+
+# 1. Normalizar variáveis numéricas entre 0 e 1
+scaler = MinMaxScaler()
+df_numeric_scaled = pd.DataFrame(scaler.fit_transform(df_numeric), columns=df_numeric.columns)
+
+# 2. Inicializar o seletor (ex: remover se variância < 0.01)
+selector = VarianceThreshold(threshold=0.01)
+
+# 3. Ajustar aos dados
+selector.fit(df_numeric_scaled)
+
+# 4. Obter nomes das colunas que passaram no teste
+features_mantidas = df_numeric.columns[selector.get_support()]
+features_removidas = df_numeric.columns[~selector.get_support()]
+
+print(f"Features para Clusterização: {list(features_mantidas)}")
+print(f"Features Descartadas (Baixa Variância): {list(features_removidas)}")
+```
+
 - Scatterplot with Factorial Analysis for Mixed Data (FAMD); 
 - Spider/Radar chart for profiling.
 
