@@ -54,7 +54,45 @@ score = silhouette_score(dist_matrix, clusters, metric='precomputed')
 dbi = davies_bouldin_score(df.select_dtypes(include=[np.number]), clusters)
 ```
 
-Since gower will be used for HCA, and the matrix applies Min/Max Scaler for numerical features, detect outliers first and then assess VarianceThreshold:
+Since gower will be used for HCA, and the matrix applies Min/Max Scaler for numerical features, detect outliers
+```
+sns.boxplot(data=df, x='column_name')
+plt.show()
+```
+and scale first (RobustScaler) and then assess VarianceThreshold:
+
+```
+import pandas as pd
+import numpy as np
+from sklearn.preprocessing import RobustScaler
+
+# 1. Preparação dos dados
+# Criamos um exemplo onde 'A' e 'B' aparecem muito mais que os outros
+data = {'categoria': ['A']*50 + ['B']*30 + ['C', 'D', 'E', 'F', 'G', 'H']}
+df = pd.DataFrame(data)
+
+# 2. Obter as frequências (estilo .value_counts)
+# Transformamos em DataFrame para facilitar a manipulação
+counts = df['categoria'].value_counts().to_frame()
+counts.columns = ['frequencia']
+
+# 3. Aplicar o RobustScaler
+# O RobustScaler escala os dados subtraindo a mediana e dividindo pelo IQR
+scaler = RobustScaler()
+counts['scaled_freq'] = scaler.fit_transform(counts[['frequencia']])
+
+# 4. Definir o limiar (Threshold)
+# No RobustScaler, valores acima de 1.5 ou 2.0 costumam ser considerados outliers
+threshold = 1.5
+counts['is_outlier'] = counts['scaled_freq'].abs() > threshold
+
+# 5. Resultados
+print("Análise de Outliers por Categoria:")
+print(counts)
+
+outliers = counts[counts['is_outlier']].index.tolist()
+print(f"\nCategorias identificadas como outliers: {outliers}")
+```
 
 ```
 from sklearn.feature_selection import VarianceThreshold
