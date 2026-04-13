@@ -120,7 +120,7 @@ print(f"Features Descartadas (Baixa Variância): {list(features_removidas)}")
 - Scatterplot with Factorial Analysis for Mixed Data (FAMD); 
 - Spider/Radar chart for profiling.
 
-3. Kaplan-Meier Curve for main categorical features survivability over months of tenure
+3. Kaplan-Meier Curve for main categorical features survivability over months of tenure. Plot with p-value from **logrank** to assess difference between curves
 4. Feature correlation and COX PH for spotting columns of highest HR
 5. Auto ranking and choice of classification model with pipelines and GridSearchCV tuning; recall and f1 as main metrics for retention strat
 6. Apply best model to recently joined customers and divise retention and winback measures
