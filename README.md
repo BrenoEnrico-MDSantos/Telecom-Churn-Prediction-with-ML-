@@ -132,3 +132,6 @@ Classification Models:
 3. Vanilla EasyEnsembleClassifier
 4. ADASYN Tuned reg cutoff RFC
 5. Vanilla RFC
+
+## :ringed_planet: To use K-Medoids
+- The library ```scikit-learn-extra``` is available only in **python <= 3.11**. Use a custom venv as kernel for projects, and install libraries with ```%p``` (due to compatibility, ```%pip install "numpy<2"```)
