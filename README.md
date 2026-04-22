@@ -133,5 +133,13 @@ Classification Models:
 4. ADASYN Tuned reg cutoff RFC
 5. Vanilla RFC
 
-## :ringed_planet: To use K-Medoids
+## :ringed_planet: :man_technologist: To use K-Medoids
 - The library ```scikit-learn-extra``` is available only in **python <= 3.11**. Use a custom venv as kernel for projects, and install libraries with ```%p``` (due to compatibility, ```%pip install "numpy<2"```)
+- Check all versions installed at CMD with ```py -0``` (asterisk marks the current)
+    - ```dir``` for checking created venvs
+- Install pip and upgrade if needed: ```python -m ensurepip --upgrade```
+- Kernel creation: ```pip install ipyernel```, then ```python -m ipykernel install --user --name=venv_kmedoids --display-name "Python 3.11 (KMedoids)"```
+    - For checking all kernels, ```jupyter kernelspec list```, and to uninstall: ```jupyter kernelspec uninstall venv_kmedoids```
+- Activate the venv ```venv_kmedoids\Scripts\activate```
+- Open JupyterLab: ```jupyter lab``` or [URL](http://localhost:8888/lab?token=04f81664309fa076b10351753c52ec47dd26265eca202945)
+- Create the project with new kernel _Python 3.11 (KMedoids)_. Remember to use ```%pip install```
