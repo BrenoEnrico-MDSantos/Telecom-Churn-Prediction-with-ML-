@@ -143,3 +143,5 @@ Classification Models:
 - Activate the venv ```venv_kmedoids\Scripts\activate```
 - Open JupyterLab: ```jupyter lab``` or [URL](http://localhost:8888/lab?token=04f81664309fa076b10351753c52ec47dd26265eca202945)
 - Create the project with new kernel _Python 3.11 (KMedoids)_. Remember to use ```%pip install```
+
+Uplift posting: (here) [https://cmr.berkeley.edu/2025/11/to-treat-or-not-to-treat-five-lessons-learned-from-using-uplift-modeling-to-optimize-marketing-campaigns/]
