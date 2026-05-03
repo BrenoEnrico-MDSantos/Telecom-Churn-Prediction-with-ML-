@@ -1,41 +1,65 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-# Supondo que 'df' é seu dataframe original e 'woe_df' contém os valores de WoE por variável
-def get_state_drivers(df, target_col, feature_cols):
-    state_report = []
+def robust_cluster_profiling(df, cluster_col='Clusters', alpha=1.0, min_freq=0.1):
+    """
+    Calcula métricas de perfilamento robustas para evitar contradições em datasets pequenos.
     
-    for state in df['State'].unique():
-        # Filtra os dados apenas para o estado atual
-        subset = df[df['State'] == state]
-        churn_rate = subset[target_col].mean()
-        
-        # Calcula a importância/correlação local das outras variáveis para este estado
-        # Aqui usamos correlação simples, mas você pode usar o valor absoluto do WoE médio
-        correlations = subset[feature_cols + [target_col]].corr()[target_col].drop(target_col)
-        
-        # Top Drivers de Churn (Correlação positiva com churn)
-        churn_drivers = correlations[correlations > 0].sort_values(ascending=False).index[:3].tolist()
-        
-        # Top Drivers de Retenção (Correlação negativa com churn / Protetores)
-        retention_drivers = correlations[correlations < 0].sort_values(ascending=True).index[:3].tolist()
-        
-        state_report.append({
-            'State': state,
-            'Churn_Rate': churn_rate,
-            'Top_Churn_Drivers': ", ".join(churn_drivers),
-            'Top_Retention_Drivers': ", ".join(retention_drivers)
-        })
-    
-    return pd.DataFrame(state_report)
+    Parâmetros:
+    - alpha: Constante de suavização de Laplace (1.0 é o padrão).
+    - min_freq: Limiar mínimo (10%) para ignorar ruído estatisticamente irrelevante no cluster.
+    """
+    results = []
+    features = [col for col in df.columns if col != cluster_col]
+    global_total = len(df)
 
-# Lista de colunas de features (excluindo State e o Alvo)
-features = ['Tenure', 'MonthlyCharges', 'TotalCharges', 'Contract_Type_WoE']
-report_df = get_state_drivers(df, 'Churn', features)
+    for feature in features:
+        global_counts = df[feature].value_counts()
+        
+        for cluster in df[cluster_col].unique():
+            cluster_df = df[df[cluster_col] == cluster]
+            n = len(cluster_df)
+            cluster_counts = cluster_df[feature].value_counts()
 
-# Ordenar pelos estados com maior churn para ação prioritária
-report_df = report_df.sort_values(by='Churn_Rate', ascending=False)
-print(report_df)
+            for val in global_counts.index:
+                x = cluster_counts.get(val, 0)
+                freq = x / n
+                
+                # Tweak 1: Filtro de Frequência Mínima
+                if freq < min_freq:
+                    continue
+
+                # Tweak 2: Suavização de Laplace (Probabilidades ajustadas)
+                p_cluster_smooth = (x + alpha) / (n + alpha * 2)
+                
+                x_out = global_counts[val] - x
+                n_out = global_total - n
+                p_out_smooth = (x_out + alpha) / (n_out + alpha * 2)
+
+                # Tweak 3: Log-Odds Suavizado
+                # Valores positivos indicam "Likes", negativos indicam "Dislikes"
+                log_odds = np.log(p_cluster_smooth / (1 - p_cluster_smooth)) - \
+                           np.log(p_out_smooth / (1 - p_out_smooth))
+
+                # Tweak 4: Lift (Frequência no cluster vs Global)
+                lift = freq / (global_counts[val] / global_total)
+
+                results.append({
+                    'Cluster': cluster,
+                    'Feature': f"{feature}_{val}",
+                    'Frequency': round(freq, 3),
+                    'Log_Odds_Smooth': round(log_odds, 3),
+                    'Lift': round(lift, 3)
+                })
+
+    return pd.DataFrame(results).sort_values(['Cluster', 'Log_Odds_Smooth'], ascending=[True, False])
+
+# Aplicação
+profile_df = robust_cluster_profiling(df)
+
+# Para ver o "Top" de cada cluster sem as contradições:
+print(profile_df[profile_df['Log_Odds_Smooth'] > 0])
+
 
 import pandas as pd
 import shap
