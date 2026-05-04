@@ -1,64 +1,96 @@
-import numpy as np
 import pandas as pd
+import numpy as np
+from sklift.models import SoloModel
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+from category_encoders import WOEEncoder
 
-def robust_cluster_profiling(df, cluster_col='Clusters', alpha=1.0, min_freq=0.1):
-    """
-    Calcula métricas de perfilamento robustas para evitar contradições em datasets pequenos.
+# 1. Definimos o Encoder focado no CHURN (target real/profiling)
+encoder = WOEEncoder(cols=['Contract', 'PaymentMethod', 'Cluster'])
+
+# 2. Fit apenas nos dados de treino para evitar leakage
+X_train_encoded = encoder.fit_transform(X_train, y_train) # y_train = Churn_Label
+
+# 3. O SoloModel recebe os dados com WoE + a flag de tratamento
+sm.fit(X_train_encoded, y_train, treatment_train)
+
+import pandas as pd
+import numpy as np
+from category_encoders import WOEEncoder
+from sklift.models import SoloModel
+from xgboost import XGBClassifier
+from sklearn.model_selection import train_test_split
+
+# 1. Simulação do seu Dataset (df_joined)
+np.random.seed(42)
+n = 1000
+data = {
+    'Cluster': np.random.choice(['C1', 'C2', 'C3', 'C4', 'C5'], n),
+    'Contract': np.random.choice(['Month-to-month', 'One year', 'Two year'], n),
+    'PaymentMethod': np.random.choice(['Electronic check', 'Mailed check', 'Bank transfer'], n),
+    'Churn_Score': np.random.uniform(0, 100, n), # Seu score original
+    'treatment': np.random.choice([0, 1], n)     # Simulação da oferta A/B
+}
+df = pd.DataFrame(data)
+
+# Criando o Churn_Label (1 se Score > cutoff de 70, simulando seu processo)
+df['Churn_Label'] = (df['Churn_Score'] > 70).astype(int)
+
+# 2. Divisão de Treino e Teste
+X = df.drop(['Churn_Label'], axis=1)
+y = df['Churn_Label']
+treat = df['treatment']
+
+X_train, X_test, y_train, y_test, tr_train, tr_test = train_test_split(
+    X, y, treat, test_size=0.3, random_state=42
+)
+
+# 3. Mapeamento WoE (Target é o Churn_Label)
+# Nota: tr_train não entra no WoE, apenas as features categóricas e o target Y
+cat_cols = ['Cluster', 'Contract', 'PaymentMethod']
+encoder = WOEEncoder(cols=cat_cols)
+X_train_encoded = encoder.fit_transform(X_train.drop('treatment', axis=1), y_train)
+X_test_encoded = encoder.transform(X_test.drop('treatment', axis=1))
+
+# 4. Implementação do S-Learner (Uplift)
+# Usamos o XGBoost para aprender a interação entre WoE, Scores e Tratamento
+sm = SoloModel(XGBClassifier(random_state=42))
+sm.fit(X_train_encoded, y_train, tr_train)
+
+# 5. Predição do Uplift Score
+# uplift = P(Churn|Controle) - P(Churn|Tratamento)
+# Score positivo = A oferta REDUZIU a probabilidade de churn.
+uplift_scores = sm.predict_tau(X_test_encoded)
+
+# 6. Profiling e Segmentação (Mapeamento de Tipos de Clientes)
+results = X_test.copy()
+results['uplift_score'] = uplift_scores
+results['churn_label'] = y_test.values
+
+def segment_customers(row):
+    # Definindo limiares (podem ser ajustados conforme a distribuição)
+    high_uplift = 0.1  # Sensível à oferta
+    low_uplift = -0.1  # Reação negativa à oferta
     
-    Parâmetros:
-    - alpha: Constante de suavização de Laplace (1.0 é o padrão).
-    - min_freq: Limiar mínimo (10%) para ignorar ruído estatisticamente irrelevante no cluster.
-    """
-    results = []
-    features = [col for col in df.columns if col != cluster_col]
-    global_total = len(df)
+    if row['uplift_score'] > high_uplift:
+        return 'Persuadable'      # O alvo de ouro
+    elif row['uplift_score'] < low_uplift:
+        return 'Sleeping Dog'     # Não toque neles!
+    else:
+        if row['churn_label'] == 0:
+            return 'Sure Thing'    # Vai ficar de qualquer jeito
+        else:
+            return 'Lost Cause'    # Vai sair de qualquer jeito
 
-    for feature in features:
-        global_counts = df[feature].value_counts()
-        
-        for cluster in df[cluster_col].unique():
-            cluster_df = df[df[cluster_col] == cluster]
-            n = len(cluster_df)
-            cluster_counts = cluster_df[feature].value_counts()
+results['Segment'] = results.apply(segment_customers, axis=1)
 
-            for val in global_counts.index:
-                x = cluster_counts.get(val, 0)
-                freq = x / n
-                
-                # Tweak 1: Filtro de Frequência Mínima
-                if freq < min_freq:
-                    continue
+# Exibição dos Resultados
+print("Distribuição dos Segmentos de Uplift:")
+print(results['Segment'].value_counts(normalize=True) * 100)
 
-                # Tweak 2: Suavização de Laplace (Probabilidades ajustadas)
-                p_cluster_smooth = (x + alpha) / (n + alpha * 2)
-                
-                x_out = global_counts[val] - x
-                n_out = global_total - n
-                p_out_smooth = (x_out + alpha) / (n_out + alpha * 2)
-
-                # Tweak 3: Log-Odds Suavizado
-                # Valores positivos indicam "Likes", negativos indicam "Dislikes"
-                log_odds = np.log(p_cluster_smooth / (1 - p_cluster_smooth)) - \
-                           np.log(p_out_smooth / (1 - p_out_smooth))
-
-                # Tweak 4: Lift (Frequência no cluster vs Global)
-                lift = freq / (global_counts[val] / global_total)
-
-                results.append({
-                    'Cluster': cluster,
-                    'Feature': f"{feature}_{val}",
-                    'Frequency': round(freq, 3),
-                    'Log_Odds_Smooth': round(log_odds, 3),
-                    'Lift': round(lift, 3)
-                })
-
-    return pd.DataFrame(results).sort_values(['Cluster', 'Log_Odds_Smooth'], ascending=[True, False])
-
-# Aplicação
-profile_df = robust_cluster_profiling(df)
-
-# Para ver o "Top" de cada cluster sem as contradições:
-print(profile_df[profile_df['Log_Odds_Smooth'] > 0])
+print("\nUplift Médio por Cluster (WoE-based):")
+print(results.groupby('Cluster')['uplift_score'].mean().sort_values(ascending=False))
+)
 
 
 import pandas as pd
