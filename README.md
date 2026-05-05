@@ -26,6 +26,7 @@ Uplift posting: [here](https://cmr.berkeley.edu/2025/11/to-treat-or-not-to-treat
     - Laplace Smoothed Odds Ratio + Lift for cluster prominent traits;
     - Labeling and expert domain strategy with AI;
         -  'State' table with top drivers
+        - CLV and Residual CLV calculations (profiles based on heatmap)
 3. Churn Prediction for Recently Joined:
     - Weight of Evidence calculations for event of churn;
     - COX PH Hazard Ratios with relevant Information Value columns;
@@ -36,5 +37,6 @@ Uplift posting: [here](https://cmr.berkeley.edu/2025/11/to-treat-or-not-to-treat
 4. Uplift Analysis on customers at risk:
     - A/B groups (simulated intervention and response across clusters);
     - The predicted churn labeling becomes the target for WOEEncoder;
+    - Uplift must be paired with Residual CLV for even stronger priority 
     -  Calculation of Uplift and profiling to assess feasibility of interventions;
 5. PBI Dashboards for churn situation, clusters, states and campaign predictions.   
