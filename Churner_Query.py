@@ -1,5 +1,77 @@
 import pandas as pd
 import numpy as np
+from xgboost import XGBClassifier
+from sklift.models import SoloModel
+from sklearn.model_selection import train_test_split
+from category_encoders import WOEEncoder
+
+# 1. SETUP E DISTRIBUIÇÃO EQUILIBRADA
+np.random.seed(42)
+n = 10000
+
+data = {
+    'Cluster': np.random.choice(['Premium', 'Budget', 'Standard', 'Retention_Risk'], n),
+    'Contract': np.random.choice(['Month-to-month', 'One year', 'Two year'], n),
+    'Payment': np.random.choice(['Auto', 'Manual'], n),
+    'Churn_Score_Base': np.random.uniform(20, 80, n),
+    'Tenure_Months': np.random.randint(1, 72, n)
+}
+df = pd.DataFrame(data)
+
+# Garante probabilidade 50/50 de tratamento em todos os clusters (RCT perfeito)
+df['treatment'] = np.random.binomial(1, 0.5, n)
+
+# 2. LÓGICA DE RESPOSTA ESCALÁVEL (Matriz de Coeficientes)
+# Criamos um "Vetor de Persuabilidade" individual
+# Cada variável contribui para o quanto o cliente é sensível ao tratamento (Uplift)
+X_dummy = pd.get_dummies(df[['Cluster', 'Contract', 'Payment']], drop_first=True)
+
+# Coeficientes aleatórios para simular a "verdade oculta" do mercado
+# Alguns positivos (sensíveis), outros negativos (irritáveis/Sleeping Dogs)
+coefs = np.random.uniform(-0.5, 0.5, X_dummy.shape[1])
+sensibilidade_base = X_dummy.dot(coefs)
+
+# O efeito do tratamento (uplift) é uma função da sensibilidade + ruído individual
+df['individual_uplift'] = (sensibilidade_base * 20) + np.random.normal(0, 5, n)
+
+# Churn Final: Probabilístico (Logit-like)
+# Se recebeu tratamento, reduzimos o score base pelo uplift individual
+df['score_final'] = df['Churn_Score_Base'] - (df['treatment'] * df['individual_uplift'])
+
+# Transforma score em probabilidade e então em label binário
+prob = 1 / (1 + np.exp(-(df['score_final'] - 50) / 10))
+df['Churn_Label'] = np.random.binomial(1, prob)
+
+# 3. MODELAGEM (SoloLearner)
+X = df[['Cluster', 'Contract', 'Payment', 'Churn_Score_Base', 'Tenure_Months']]
+y = df['Churn_Label']
+treat = df['treatment']
+
+X_train, X_test, y_train, y_test, tr_train, tr_test = train_test_split(X, y, treat, test_size=0.3)
+
+encoder = WOEEncoder(cols=['Cluster', 'Contract', 'Payment'])
+X_train_encoded = encoder.fit_transform(X_train, y_train)
+X_test_encoded = encoder.transform(X_test)
+
+sm = SoloModel(XGBClassifier(n_estimators=100, learning_rate=0.1))
+sm.fit(X_train_encoded, y_train, tr_train)
+
+# 4. AVALIAÇÃO POR DECIL
+uplift_scores = sm.predict_tau(X_test_encoded)
+eval_df = pd.DataFrame({'uplift': uplift_scores, 'target': y_test, 'tr': tr_test})
+eval_df['decile'] = pd.qcut(eval_df['uplift'], 10, labels=False)
+
+report = eval_df.groupby('decile').apply(
+    lambda x: x[x['tr'] == 0]['target'].mean() - x[x['tr'] == 1]['target'].mean()
+).reset_index(name='Real_Uplift').sort_values('decile', ascending=False)
+
+print(report)
+
+
+
+
+import pandas as pd
+import numpy as np
 from sklift.models import SoloModel
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
