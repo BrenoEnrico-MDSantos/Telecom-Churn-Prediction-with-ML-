@@ -40,3 +40,7 @@ Uplift posting: [here](https://cmr.berkeley.edu/2025/11/to-treat-or-not-to-treat
     - Uplift must be paired with Residual CLV for even stronger priority 
     -  Calculation of Uplift and profiling to assess feasibility of interventions;
 5. PBI Dashboards for churn situation, clusters, states and campaign predictions.   
+
+## AI for Cluster Analysis:
+These prints were passed for Gemini, which acted as a market expert and suggested labels for each created segment; the prompt was:
+_"Act as a telco market expert. Analyze these cluster preferences, distribution, survivability curves and Residual CLV runways. Brainstorm at least 3 names for each of the segments applying domain knowledge, and suggest measures for customer retention. Let's think this step by step."_
