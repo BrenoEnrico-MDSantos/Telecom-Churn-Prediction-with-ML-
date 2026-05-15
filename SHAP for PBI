@@ -1,6 +1,5 @@
 import pandas as pd
 import shap
-import matplotlib.pyplot as plt
 
 # 1. Force the explainer to calculate in probability space natively
 # NOTE: Passing feature data (e.g., X_train or X_recently_joined) is required 
@@ -34,20 +33,22 @@ final_export_df.to_csv("pbi_operational_churn_data.csv", index=False)
 
 Once your table is imported into Power BI, create a Python Visual, drag your columns into its field bucket, and use this exact script. Because XGBoost models often deal with dozens of features, we will add max_display=10 to keep the chart clean, legible, and uncluttered for the marketing team:
 
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mtick
+
 if not dataset.empty:
+    # 1. Grab the single customer row
     row = dataset.iloc[0]
     
-    # Dynamic Mapping: Find all columns that start with 'shap_'
-    # and match them to their raw feature column equivalents automatically!
+    # 2. Dynamic Mapping (Matches raw features to their shap_ columns perfectly)
     shap_names = [col for col in dataset.columns if col.startswith('shap_') and col != 'shap_base_value']
     feature_names = [col.replace('shap_', '') for col in shap_names]
     
-    # Extract arrays
     feature_values = row[feature_names].values
     shap_values = row[shap_names].values
     base_value = row['shap_base_value']
     
-    # Rebuild the SHAP Explanation object
+    # 3. Rebuild the SHAP Explanation object
     exp = shap.Explanation(
         values=shap_values,
         base_values=base_value,
@@ -55,11 +56,26 @@ if not dataset.empty:
         feature_names=feature_names
     )
     
-    # Generate the plot
+    # 4. Generate the plot on an explicit Matplotlib Axis
     fig, ax = plt.subplots(figsize=(7, 5))
     shap.waterfall_plot(exp, max_display=10, show=False)
     
-    # Visual polish
+    # 5. FORCE PERCENTAGE FORMATTING ON THE X-AXIS AND TEXT LABELS
+    # Convert x-axis ticks to percentages (e.g., 0.2 -> 20%)
+    ax.xaxis.set_major_formatter(mtick.PercentFormatter(1.0, decimals=0))
+    
+    # Find the text labels inside the chart (+/- impacts and numbers) and format them
+    for text in ax.texts:
+        try:
+            val = float(text.get_text().replace('=', '').replace('+', '').strip())
+            # If it's a small decimal value, turn it into an integer percentage string
+            if -1.0 <= val <= 1.0 and val != 0:
+                prefix = "+" if val > 0 else ""
+                text.set_text(f"{prefix}{int(round(val * 100))}%")
+        except ValueError:
+            pass # Skip labels that aren't numeric (like feature values)
+
+    # 6. Visual polish
     plt.title(f"Churn Drivers for Customer {row['Customer_ID']}", fontsize=12, fontweight='bold', pad=15)
     plt.tight_layout()
     plt.show()
